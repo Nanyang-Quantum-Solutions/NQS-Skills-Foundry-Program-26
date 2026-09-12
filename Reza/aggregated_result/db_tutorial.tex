@@ -1,0 +1,56 @@
+\documentclass[11pt]{article}
+
+% Math
+\usepackage{amsmath, amssymb, amsfonts, mathtools}
+
+% Page layout
+\usepackage[margin=1in]{geometry}
+
+% Optional useful packages
+\usepackage{physics}      % \bra, \ket, \dv, \pdv, etc.
+\usepackage{bm}           % bold math symbols
+\usepackage{enumitem}     % better lists
+\usepackage{hyperref}     % links
+\hypersetup{
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=blue,        % color of internal links (sections, pages, etc.)
+    citecolor=green,       % color of citation links to bibliography
+    % filecolor=magenta,     % color of file links
+    urlcolor=blue,         % color of external website links
+    % allcolors=blue       % uncomment this if you want ALL links to use one color
+}
+
+\title{DB Tutorial}
+\author{Reza Asakereh}
+\date{Last Update: \today}
+
+\begin{document}
+
+\maketitle
+
+\section{Findings}
+\subsection{Move toward ground state}
+I had an interesting observation regarding DB-QITE:
+The purpose of this algorithm is that when applied to state $|\psi_{old}\rangle$ we get $|\psi_{new}\rangle$ that is closer to the ground state of $H$ than before.
+
+To measure how close a state ($|\psi\rangle$) is to the ground state ($|v_0\rangle$) we can use the size of dot product: $| \langle v_0 | \psi \rangle |$. So the purpose of DB-QITE is to ensure
+$$| \langle v_0 | \psi_{new} \rangle | > | \langle v_0 | \psi_{old} \rangle |$$
+
+My observation is that if we show $| \psi_{old} \rangle = (a_0, a_1, \dots, a_n)$ in the basis of $H$ eigenvectors, we will have:
+$$
+| \langle v_0 | \psi_{new} \rangle |^2 = | \langle v_0 | \psi_{old} \rangle |^2 + t(\sum_{i=0}^n{2(s_i - s_0)|a_i|^2|a_0|^2}) + O(t^2)
+$$
+where $s_i$ is the $i$'th smallest eigenvalue of $H$ and $t$ is time.
+\\
+
+It is obvious that the value added to $| \langle v_0 | \psi_{old} \rangle |^2$ is always positive except for when $|a_0| = 0$ or $1$ therefore we always get closer to the ground state.
+Don't worry about the two edge cases. They mean $| \psi_{old} \rangle$ has no ground state component or is already ground state itself, so for the former convergence never happens using ITE algorithms and for the latter we have already converged.
+\\
+
+
+\textbf{Intuition:}
+We can see that change in $| \langle v_0 | \psi \rangle |^2$ is proportional to $\sum_{i=0}^n{(s_i - s_0)|a_i|^2}$. This sum actually has an interesting physical interpretation. It is equal to $\langle \psi | H | \psi \rangle - s_0$ which means how far the average energy of the state is from the ground state. This says that for the same starting $| \langle v_0 | \psi \rangle |$, the states with higher average energy, converge faster towards the ground state.
+
+Details and proof can be found in \href{https://colab.research.google.com/drive/1dsnv5_XMr6TzfRn7-RQuOCWzfpAqkZ1y?usp=sharing}{here}
+
+\end{document}

@@ -1,0 +1,172 @@
+\documentclass[11pt]{article}
+
+% Math
+\usepackage{amsmath, amssymb, amsfonts, mathtools}
+
+% Page layout
+\usepackage[margin=1in]{geometry}
+
+% Optional useful packages
+\usepackage{physics}      % \bra, \ket, \dv, \pdv, etc.
+\usepackage{bm}           % bold math symbols
+\usepackage{enumitem}     % better lists
+\usepackage{hyperref}     % links
+\hypersetup{
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=blue,        % color of internal links (sections, pages, etc.)
+    citecolor=green,       % color of citation links to bibliography
+    % filecolor=magenta,     % color of file links
+    urlcolor=blue,         % color of external website links
+    % allcolors=blue       % uncomment this if you want ALL links to use one color
+}
+
+\title{Weekly Update}
+\author{Reza Asakereh}
+\date{Last Update: \today}
+
+\begin{document}
+
+\maketitle
+
+\section{Main Findings}
+\subsection{DB-Sorter}
+\textbf{quick background.} DB-sorter uses the sorting characteristic of DB flow to find ground state or excited states of a hamiltonian $H$ using a diagonal matrix $D$ that has an engineered order in its diagonal elements (usually increasing). The continuous and discerete description of flow is as follows:
+\begin{align}
+    \frac{dH}{dt} &= [[D, H], H] \\
+    H_{k+1} &= e^{s[D, H]} H_k e^{-s[D, H]}
+\end{align}
+
+\textbf{Findings:}
+
+\begin{itemize}
+    \item When $H$ and $D$ share an eigenbasis, the bracket vanishes and halts the flow. Current version generally focuses on $D$ to be diagonal in the standard basis. but we can change the basis and have $D$ diagonal in another basis to break the shared eigenbasis. Note that this change diagonalizes $H$ in the new basis. See \hyperref[sec:shared-basis]{3.1.1}
+    \item We can show that DB-sorter can recover grover's algorithm. See \hyperref[sec:grover-recovery]{3.1.2}
+    \item the above opens the door to different variations, especially one that significantly reduces the CNOT counts at the cost of deeper circuits. Moreover, most of these variations do not have the overshoot issue as much as the original grover's. See \hyperref[sec:grover-improvement]{3.1.3}
+    \item we previously showed that when estimating the ground state, the energy level is continuously dropping in every step. Now in general we can show that:
+    $$
+    \frac{d}{dt}(\bra{k} H(t) \ket{k} - E_k)^2 = 4(\bra{k} H \ket{k} - E_k)(\bra{\psi_k} d_kI - D \ket{\psi_k})
+    $$
+    where $\ket{k}$ is the $k$'th eigenstate, $E_k$ is the $k$'th excited state of $H$, $\ket{\psi_k} = H\ket{k}$, and $d_k$ is the $k$'th diagonal element of $D$. For the ground state and the last excited state we can show that every single step gets our estimated energy closer to the desired energy with no assumption for $D$ other than having increasing diagonal elements. However for the excited levels in the middle, we can show that not all $D$'s behave this way. See \hyperref[sec:mean-squared-error]{3.1.4}
+\end{itemize}
+
+\subsection{Fidelity Witness}
+\textbf{quick background.} I am working on finding a new fidelity witness. My first effort was through optimization approach to fidelity:
+$$
+F(P, Q) = max\{\lvert Tr(X) \rvert: X \in L(\mathcal{X}), \begin{pmatrix}
+  P & X \\
+  X^* & Q 
+\end{pmatrix} \in Pos(\mathcal{X \oplus X}) \}
+$$
+Which means finding any feasible $X$ can offer a witness
+
+\textbf{Findings.}
+\begin{itemize}
+    \item \href{https://cs.uwaterloo.ca/~watrous/TQI/TQI.3.pdf}{Watrous: Lemma 3.18} provides a proof saying $X$ is a feasible solution if and only if $X$ has the following form:
+    $$
+    X = \sqrt{P}K\sqrt{Q}: K \in L(\mathcal{X}),  \lVert K \rVert \le 1
+    $$
+    I could show that for general target states, there is no possible $X$ that can be easily implemented. However if you narrow down to specific class of target states, you can find polynomially synthesizable $X$. While it looks promising, usually computing the fidelity itself for this class of targets is also polynomially easy. See \hyperref[sec:fidelity-deadend]{3.2.1} 
+\end{itemize}
+
+
+
+\section{Plan For Next Week(s)}
+\subsection{DB-sorter}
+\begin{itemize}
+    \item implementing grover's algorithm with DB-sorter + exploring and analyzing various $D$'s and $t$'s
+    \item finding proper $D$ that guarantees monotone error drop in $\frac{d}{dt}(\bra{k} H(t) \ket{k} - E_k)^2$ for all $k$'s and not just ground state
+    \item If $U$ is the unitary transforming $H(0)$ to $H(t)$, finding the fidelity $U\ket{0}$ and the ground state(s) to see if the prepared state constantly converges to a single ground state or is a superposition of degenerate states. Same for the $k$'th excited state
+\end{itemize}
+
+\subsection{Fidelity Witness}
+\begin{itemize}
+    \item When computing fidelity witness we use expected value $Tr(\mathcal{W}\rho)$. what if in each measurement we change $\mathcal{W}$? connecting to classical shadows
+    \item Also giving a shot to other available methods in the new fidelity proposal
+\end{itemize}
+
+\section{Details}
+\subsection{DB-sorter}
+\subsubsection{$H$ has the standard basis as its eigenstates}
+\label{sec:shared-basis}
+We know that the standard basis vectors are the eigenstates of a diagonal $D$. If this holds for $H$, $[H, D] = 0$ and hence the flow halts. To go around this, in these case, we create a $D$ in another basis. An easy change of basis that has over head of two layers with only one-qubit gates is using $\ket{s_0}, \ket{s_1}, \dots, \ket{s_{n-1}}$ instead of $\ket{0}, \ket{1}, \dots, \ket{n-1}$ where $s_k = H^{\otimes n}\ket{k}$ ($H$ here is hadamard gate). To compare how it affects our computation, previously $H(\infty)$ was diagonal in the standard basis but now it is in the new basis. Therefore to find the ground energy, instead of $\bra{0}H(\infty)\ket{0}$, we evaluate $\bra{s_0}H(\infty)\ket{s_0}$
+
+\subsubsection{Grover's algorithm can be recovered from DB-sorter}
+\label{sec:grover-recovery}
+Consider the following hamiltonian:
+$$
+H = -\pi\ket{w}\bra{w}
+$$
+and we have access to it using the oracle $U = e^{iH}$. This unitary is grover's problem unitary and the solution is $\ket{w}$. Let's find the ground state (solution) using DB-sorter.
+
+We have the following formula for DB-sorter:
+\begin{align}
+V_k &= e^{itD} U_k^{t} e^{-itD} \\
+H_{k+1} &= V_k^\dagger H_k V_k \\
+&\Rightarrow U_{k+1} = V_k^\dagger U_k V_k
+\end{align}
+
+where $U_1$ is the input oracle. Now we design $D$. As $H$ has the standard basis as its eigenstate, we make $D$ to be diagonal in $\ket{s_0}, \ket{s_1}, \dots, \ket{s_{n-1}}$ basis. If we set the first diagonal element of $D$ to be $-\pi$ and the rest 0, we have $e^{iD} = I - 2\ket{s_0}\bra{s_0}$. Set the time step $t=1$ and the unpacked iteration would be Grover's algorithm.
+
+\subsubsection{Grover's algorithm can be improved}
+\label{sec:grover-improvement}
+there are a number of changes we can apply to the above ground state discovery method:
+\begin{itemize}
+    \item use another $D$: if we use the $D$ described \href{https://colab.research.google.com/drive/1jGR1RRAuEHVS-Zpaa9KOCZpvkuE9EALd#scrollTo=plou_wwU8GcA}{here} we get rid of $I - 2\ket{0}\bra{0}$ and replace it with one layer of 1-qubit gates. The classic reflection is a $log(n)$ gate and would result in $\mathcal{O}(log(n))$ ladder-like CNOTs. However, as mentioned previously, this can slow down the convergence; therefore, we'll need more steps in DB.
+    \item don't worry about overshooting. When we add one extra iteration to DB-sorter grover's, we effectively repeat the previous circuit 3 times, resulting in a divisable iteration and coming back to the solution. However, under the hood, we've already overshoot multiple times. 
+\end{itemize}
+
+\subsubsection{Is energy change in DB-sorter desirable in every single step?}
+\label{sec:mean-squared-error}
+To extimate the energy level of $k$'th excited state at each step, we can compute $\bra{k} H(t) \ket{k}$. By DB-sorter properties, we know that we converge to the exact value $E_k$. But during the process, how correct do we estimate it. For this matter, we observe the fluctuations in the mean square error between our estimate and exact value:
+
+$$
+\frac{d}{dt}(\bra{k} H(t) \ket{k} - E_k)^2 = 4(\bra{k} H \ket{k} - E_k)(\bra{\psi_k} d_kI - D \ket{\psi_k})
+$$
+where $\ket{\psi_k} = H\ket{k}$ and $d_k$ is the $k$'th diagonal element of $D$. One can verify that this value always has a negative derivative for $E_0$ and $E_{n-1}$ using negative/positive semidefiniteness of $d_kI - D$ respectively. However this doesn't hold for all states and all generic monotone $D$'s. Counter example:
+Consider following definitions:
+\begin{itemize}
+    \item $S^- = Span(\{\ket{0}, \ket{1}, \dots, \ket{k-1}\})$ and $S^+ = Span(\{\ket{k+1}, \ket{k+2}, \dots, \ket{n-1}\})$
+    \item $\ket{\psi_k} \equiv H\ket{k} = \alpha\ket{k} + \beta\ket{k^-} + \gamma\ket{k^+}$ where $\ket{k^-} \in S^-$ and $\ket{k^+} \in S^+$
+    \item $diag(D) = \{-\Delta - \epsilon, -\Delta - \epsilon, \dots, -\Delta - \epsilon, 0, \Delta, \Delta, \dots, \Delta \}$ where $k$'th element is $0$
+\end{itemize}
+With the definition above, you can show that the derivative is equal to the following:
+$$
+\frac{d}{dt}(\bra{k} H(t) \ket{k} - E_k)^2 = 4(\alpha - E_k)(\Delta(\gamma^2 - \beta^2) + \epsilon \beta^2)
+$$
+For cases where the energy of the initial state ($\alpha$) is more than $E_k$, we can arbitrarily increase the derivative by controlling $\epsilon$ so that specific state would increase the mean square error.
+
+
+\subsection{Fidelity Witness}
+\subsubsection{The \textit{optimization-problem-as-a-witness} looks like a deadend}
+\label{sec:fidelity-deadend}
+For an $X$ to fit Watrous optimization approach to fidelity, we need to have:
+$$
+X = \sqrt{P}K\sqrt{Q}: K \in L(\mathcal{X}),  \lVert K \rVert \le 1
+$$
+For pure target($P=\ket{\psi_t}\bra{\psi_t}$) and prepared($Q=\ket{\psi_p}\bra{\psi_p}$) states, we have:
+$$
+X = \ket{\psi_p}\bra{\psi_p}K\ket{\psi_t}\bra{\psi_t}
+$$
+Considering that $F(P, Q) \ge Tr(X) = Tr(\ket{\psi_p}\bra{\psi_p}K\ket{\psi_t}\bra{\psi_t})$ and comparing it with the fidelity witness $\mathcal{W}$ definition we can set $\mathcal{W} = \ket{\psi_p}\bra{\psi_p}K$, therefore $Tr(\mathcal{W}\ket{\psi_t}\bra{\psi_t})$ is always a lower bound for fidelity. Here is my effort to find a reasonable $K$ to be a general witness. Let us have the following decomposition of $\ket{\psi_t}$ and $K$:
+\begin{align*}
+\ket{\psi_t} &= \sum_i{a_i\ket{i}} \\
+K &= \sum_{i,j}s_{ij}\ket{i}\bra{j}
+\end{align*}
+Then we will have
+$$
+\mathcal{W} = \ket{\psi_p}\bra{\psi_p}K = (\sum_{i,j}a_ia_j^*\ket{i}\bra{j})(\sum_{i,j}s_{ij}\ket{i}\bra{j}) = \sum_{i,l}a_if_l\ket{i}\bra{l}
+$$
+where 
+$$
+f_l = \sum_{i,j}a_j^*s_{ij}
+$$
+As you can see the relation for $\mathcal{W}$ can collapse to 
+$$
+\mathcal{W} = \sum_{i,l}a_if_l\ket{i}\bra{l} = (\sum_i{a_i\ket{i}})(\sum_l{f_l\bra{l}}) = \ket{\psi_t}\bra{L}
+$$
+Intuitively, as $\mathcal{W}$ has $\ket{\psi_t}$ component in it, finding $Tr(\mathcal{W}Q)$ seems to be as hard as $Tr(PQ)$ for general target states + in case of having only one copy of target state, computing the expected value is impossible. However, we can limit $\ket{\psi_t}$ to specific classes. For example if we write $P$ in pauli basis or in another basis with good properties (I explored SIC-POVM as well) and we have only $\mathcal{O}(poly(N))$ terms in these basis, implementing $\mathcal{W}$ would be easy. But so is implementing the exact fidelity. 
+
+
+
+
+\end{document}

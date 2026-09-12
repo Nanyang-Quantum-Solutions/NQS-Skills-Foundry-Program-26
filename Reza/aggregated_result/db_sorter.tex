@@ -1,0 +1,40 @@
+\documentclass[11pt]{article}
+
+% Math
+\usepackage{amsmath, amssymb, amsfonts, mathtools}
+
+% Page layout
+\usepackage[margin=1in]{geometry}
+
+% Optional useful packages
+\usepackage{physics}      % \bra, \ket, \dv, \pdv, etc.
+\usepackage{bm}           % bold math symbols
+\usepackage{enumitem}     % better lists
+
+\title{DB-Sorter}
+\author{Reza Asakereh}
+\date{Last Update: \today}
+
+\begin{document}
+
+\maketitle
+
+\section{Findings}
+\begin{itemize}
+    \item main algorithm is $$H_{k+1} = e^{s[D, H_k]} H_k e^{-s[D, H_k]}$$ where $D$ is a diagonal with sorted diagonal elements
+    \item Sorting characteristic of DB happens for the discrete case as well: if $c_k = tr(H_kD)$
+    $$ c_{k+1} - c_k = tr(\lVert[H_k, D]\rVert^2) + \mathcal{O}(s^2) \geq 0 + \mathcal{O}(s^2) $$
+    \item each step gets closer to the ground energy: $$ \frac{d}{dt}{\langle 0|H(t)|0\rangle} = 2\langle \psi|d_0I - D|\psi\rangle \leq 0 $$
+    \item in general for the $k$'th excited energy level $E_k$ we can show the following which does not guarantee a result similar to above for any excited states other than the last one:
+    $$\frac{d}{dt}(\bra{k} H(t) \ket{k} - E_k)^2 = 4(\bra{k} H \ket{k} - E_k)(\bra{\psi_k} d_kI - D \ket{\psi_k})$$
+    \item If $D$'s spectral gap is $\Delta$ and we can write $|\psi \rangle = H|0\rangle = \alpha |0\rangle + \beta|0^\perp \rangle$, then:
+    $$ \frac{d}{dt}{\langle 0|H|0\rangle} \leq -2\beta^2\Delta $$
+    \item Similar results can be achieved for the discrete case mostly with $\mathcal{O}(s^2)$ error
+    \item for the case where $H$ has standard basis as its eigenstates, we can make $D$ diagonal in another basis
+    \item using the above result and writing $D$ in $\ket{v_k} = H^{\otimes n}\ket{k}$ with only $d_0 = -\pi$ and $s=1$ we recover grover algorithm
+    \item we can try different $D$'s to tradeoff number of two-qubit gates and convergence speed
+\end{itemize}
+
+
+
+\end{document}
