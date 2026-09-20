@@ -1,0 +1,42 @@
+\documentclass[11pt]{article}
+
+% Math
+\usepackage{amsmath, amssymb, amsfonts, mathtools}
+
+% Page layout
+\usepackage[margin=1in]{geometry}
+
+% Optional useful packages
+\usepackage{physics}      % \bra, \ket, \dv, \pdv, etc.
+\usepackage{bm}           % bold math symbols
+\usepackage{enumitem}     % better lists
+\usepackage{hyperref}     % links
+\hypersetup{
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=blue,        % color of internal links (sections, pages, etc.)
+    citecolor=green,       % color of citation links to bibliography
+    % filecolor=magenta,     % color of file links
+    urlcolor=blue,         % color of external website links
+    % allcolors=blue       % uncomment this if you want ALL links to use one color
+}
+
+\title{Fidelity Witness}
+\author{Reza Asakereh}
+\date{Last Update: \today}
+
+\begin{document}
+
+\maketitle
+
+\section{Findings}
+\begin{itemize}
+    \item we rely on the inequality 
+    $$\forall O: ~ F(\rho_t, \rho_p) \ge F(\rho_t, O)^2 + F(O, \rho_p)^2 - 1$$
+    \item Using \href{https://doi.org/10.48550/arXiv.2002.08953}{classical shadows framework}, by collecting multiple measurements from $\rho_t$ and $\rho_p$ we can have an estimate of $F(O, \rho)$ for any $O$ as long as $O$ has a simple structure like being a pure separable state.
+    
+    A classical gradient descend can find us the $O$ that produces a relatively high lower bound for the fidelity.
+\end{itemize}
+
+
+
+\end{document}
