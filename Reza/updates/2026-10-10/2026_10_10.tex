@@ -1,0 +1,68 @@
+\documentclass[11pt]{article}
+
+% Math
+\usepackage{amsmath, amssymb, amsfonts, mathtools}
+
+% Page layout
+\usepackage[margin=1in]{geometry}
+
+% Optional useful packages
+\usepackage{physics}      % \bra, \ket, \dv, \pdv, etc.
+\usepackage{bm}           % bold math symbols
+\usepackage{bbm}
+\usepackage{enumitem}     % better lists
+\usepackage{graphicx}     % Required for inserting images
+\usepackage{subcaption}   % Required for the subfigure environment
+\usepackage{hyperref}     % links
+\hypersetup{
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=blue,        % color of internal links (sections, pages, etc.)
+    citecolor=green,       % color of citation links to bibliography
+    % filecolor=magenta,     % color of file links
+    urlcolor=blue,         % color of external website links
+    % allcolors=blue       % uncomment this if you want ALL links to use one color
+}
+
+\title{Weekly Update}
+\author{Reza Asakereh}
+\date{Last Update: \today}
+
+\begin{document}
+
+\maketitle
+
+\section{Main Findings}
+\subsection{DB-Sorter}
+\textbf{quick background.} DB-sorter uses the sorting characteristic of DB flow to find ground state or excited states of a hamiltonian $H$ using a diagonal matrix $D$ that has an engineered order in its diagonal elements (usually increasing). 
+\\
+
+\textbf{Findings:}
+\begin{itemize}
+    \item This week was mainly spent debugging the warm starts and choosing a better warm start than simple VQE. Finally \href{https://github.com/rasakereh/double-bracket-algo/commit/6cc0a4a5a2879f2dcabb9d4beb3fffece7fb32bc}{VarQITE was implemented} and  \href{https://github.com/rasakereh/double-bracket-algo/commit/3016f4ae45ddad825df3e6b7bd4007539db1cbdc}{consistently used} for better results. The result was only a sharper drop at the first step while the rest of the steps wasn't any better.
+    \item With some trials and errors, I can see that the base in which $D$ is diagonal has the boldest effect on the energy drop and convergence speed. This introduces a better place for "warm start"s. We can use a variational method as a heuristic to design a proper base for $D$. See \hyperref[sec:warm-start]{3.1.1}
+\end{itemize}
+
+
+\section{Plan For Next Week(s)}
+\subsection{DB-sorter}
+\begin{itemize}
+    \item Finding fit basis for $D$.
+    \item Wrapping up DB-sorter.
+\end{itemize}
+
+
+\section{Details}
+\subsection{DB-sorter}
+\subsubsection{D basis as warm start}
+\label{sec:warm-start}
+Previously, we saw that the energy dip can rely on the basis of $D$. Looking at the initial equation $\frac{dH}{dt} = [[D, H], H]$ one can assume deciding a basis that maximizes the double bracket whould be the way to go. For easier implementation, we try to only maximize the norm of $[D, H]$ on $\ket{k}$ for $k$'th excited state. Which is
+\begin{align*}
+    [D, H]\ket{v_k} &= (DH - HD)\ket{v_k} \\
+    &= (UMU^*H - HUMU^*)U\ket{k} \\
+    &= UMU^*HU\ket{k} - HUM\ket{k} \\
+    &= UMU^*HU\ket{k} - m_0HU\ket{k} \\
+    &= \sum{a_iUMU^*P_iU\ket{k} - a_im_0P_iU\ket{k}}
+\end{align*}
+We should be able to heuristicly do sth with it. While I am not sure how to proceed from here, my first idea is to run $l$ parallel variational circuits, one for each Pauli term in the Hamiltonian, with shared parameters defining $U$.
+
+\end{document}
