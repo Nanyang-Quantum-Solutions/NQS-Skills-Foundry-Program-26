@@ -1,0 +1,128 @@
+\documentclass[11pt]{article}
+
+% Math
+\usepackage{amsmath, amssymb, amsfonts, mathtools}
+
+% Page layout
+\usepackage[margin=1in]{geometry}
+
+% Optional useful packages
+\usepackage{physics}      % \bra, \ket, \dv, \pdv, etc.
+\usepackage{bm}           % bold math symbols
+\usepackage{bbm}
+\usepackage{enumitem}     % better lists
+\usepackage{graphicx}     % Required for inserting images
+\usepackage{subcaption}   % Required for the subfigure environment
+\usepackage{hyperref}     % links
+\hypersetup{
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=blue,        % color of internal links (sections, pages, etc.)
+    citecolor=green,       % color of citation links to bibliography
+    % filecolor=magenta,     % color of file links
+    urlcolor=blue,         % color of external website links
+    % allcolors=blue       % uncomment this if you want ALL links to use one color
+}
+
+\title{Weekly Update}
+\author{Reza Asakereh}
+\date{Last Update: \today}
+
+\begin{document}
+
+\maketitle
+
+\section{Main Findings}
+\subsection{DB-Sorter}
+\textbf{quick background.} DB-sorter uses the sorting characteristic of DB flow to find ground state or excited states of a hamiltonian $H$ using a diagonal matrix $D$ that has an engineered order in its diagonal elements (usually increasing). 
+\\
+
+\textbf{Findings:}
+\begin{itemize}
+    \item I chatted with ChatGPT and it annihilated my work so far. Apparently what I have needs more work. Here is a list of suggestions:
+    \begin{itemize}
+        \item Only proposing a few "good" $D$'s is not that good. Let's see more theoretical work on how a (near-)optimum $D$ look like
+        \item There is not enough work done regarding excited state, despite the claim is it can also address them
+        \item More work on sorting convergence can be done besides simply fixed point
+        \item Also compare against methods like subspace-VQE and folded spectrum
+    \end{itemize}
+    \item Optimum $D$ can be roughly found using Lagrange multipliers and a variational circuit. However my method so far is exponentially expensive. See \hyperref[sec:optimum-D]{3.1.1}
+\end{itemize}
+
+
+\section{Plan For Next Week(s)}
+\subsection{DB-sorter}
+\begin{itemize}
+    \item Finding a more efficient way of finding optimum $D$.
+    \item More analysis on excited states and sorting behaviour.
+    \item Comparison with subspace-VQE and folded spectrum.
+\end{itemize}
+
+
+\section{Details}
+\subsection{DB-sorter}
+\subsubsection{Best D}
+\label{sec:optimum-D}
+Optimally, we want the path from $H(0)$ to $H(\infty)$ be the shortest, which means minimizing 
+$$
+\int^\infty_0 \lVert dH \rVert
+$$
+However, on the quantum circuit, we only implement the first few steps. Therefore in a greedy way, we want to maximize the change from $H_0$ to $H_1$ or in other words:
+\begin{align}
+    \max \lVert dH \rVert &= \max_D tr([[D, H], H]^2) \\
+    &=\max_D tr(6H^2DH^2D - 8H^3DHD + 2H^4D^2) \\
+    &= \max_{d_1, \dots, d_n} \sum_{k=1}^n{d_k^2(6H^2[k,k]H^2[k,k] - 8H^3[k,k]H[k,k] + 2H^4[k,k])} \\
+    &= \max_{d_1, \dots, d_n} \sum_{k=1}^n{d_k^2m_k}
+\end{align}
+
+Our implementation of bracket relies on $e^{-s[D, H]} = e^{\sqrt{s}D}e^{\sqrt{s}H}e^{-\sqrt{s}D}e^{-\sqrt{s}H}$. In this implementation we have two observations: a) adding a constant value to all elements of $D$ would not affect the final results and b) multiplying a constant to all elements of $D$ can be equivalent of changing our step size. These two observations let us assume that all elements of $D$ are in $[0, 1]$. We try two scenarios:
+
+Case I: $d_1 = 0 \le d_2 \le \dots \le d_n = 1$ and Case II: $d_1 = 0 \le d_2, d_3, \dots, d_{n-1} \le d_n = 1$.
+Both of these can be solved using KKT Lagrange multipliers.
+
+For case I, the problem description would be:
+\begin{align}
+    &\max \sum_{k=1}^n{d_k^2m_k} \\
+    \text{s.t } d_k &\ge d_{k-1}: k\ge 2\\
+    d_1 &= 0, d_n = 1
+\end{align}
+which results in the Lagrangian:
+\begin{align}
+    L(\{d_k\}^n_1, \{\lambda_k\}^n_2) = \sum_{k=1}^n{d_k^2m_k} - \sum_{k=2}^n{\lambda_k(d_{k-1} - d_k)}
+\end{align}
+solution:
+\begin{align}
+    2d_km_k - \lambda_{k+1} + \lambda_k &= 0 \Rightarrow d_k = \frac{\lambda_{k+1} - \lambda_k}{2m_k}\\
+    \lambda_k(d_k - d_{k-1}) &= 0 \\
+    \lambda_k &\ge 0
+\end{align}
+
+Considering the complementary slackness, we can test different number of starting $k$'s for which $\lambda_k = 0$. If the first $r$ Lagrange multipliers are zero, from above equations we will have 
+$$
+d_1, \dots, d_{r-2} = 0, d_{r-1} = \frac{\lambda_r}{2m_r}
+$$
+With induction and complementary slackness, you can show that (except for an edge case), all feasible solutions have $\lambda_{k>r} = \alpha \lambda_r, \alpha > 0$, therefore $d_{k \ge r-1} = 1$. This means that the solution to this optimization is a diagonal matrix with the first $r$ elements equal to 0 and the rest equal to 1.
+
+
+For case II, the problem description would be:
+\begin{align}
+    &\max \sum_{k=1}^n{d_k^2m_k} \\
+    \text{s.t } 0 &\le d_k \le 1\\
+    d_1 &= 0, d_n = 1
+\end{align}
+which results in the Lagrangian:
+\begin{align}
+    L(\{d_k\}^n_1, \{\lambda_k\}^n_1, \{\gamma_k\}^n_1) = \sum_{k=1}^n{d_k^2m_k} - \sum_{k=1}^n{\lambda_k(d_k - 1) + \sum_{k=1}^n{\gamma_kd_k}}
+\end{align}
+solution:
+\begin{align}
+    2d_km_k - \lambda_k + \gamma_k &= 0 \Rightarrow d_k = \frac{\lambda_k - \gamma_k}{2m_k}\\
+    \lambda_k(d_k - 1) &= 0 \\
+    \gamma_kd_k &= 0 \\
+    \lambda_k, \gamma_k &\ge 0
+\end{align}
+Using complementary slackness, we should have all elements arbitrarily $0$ or $1$.
+
+Both cases boil down to exponentially many candidates to check the maximum in. Also computing the trace in equation 2 requires exponentially many Pauli terms.
+
+
+\end{document}
